@@ -12,7 +12,9 @@ import {
     login,
     logout,
     auth,
-    createTodo
+    createTodo,
+    removeTodo,
+    database
 } from './utils/firebaseService';
 
 
@@ -49,8 +51,10 @@ function Home() {
 function Dashboard({
     user,
     text,
+    todos,
     handleChange,
-    handleSubmit
+    handleSubmit,
+    handleRemove
   
   }) {
     return(
@@ -67,8 +71,13 @@ function Dashboard({
             />
             <hr />
             <h5>Here's your todo items</h5>
-            <ul>
+            <ul style={{listStyle: 'none'}}>
               {
+                todos.map(({id, text}) => (
+                  <li key={id}>
+                    <span onClick={() => handleRemove(id)}>X</span>
+                    &nbsp;{text}</li>
+                ))
                 /* we'll map through out todo items here */
               }
             </ul>
@@ -101,6 +110,7 @@ class App extends Component {
             authenticated: false,
             user: null,
             text: " ",
+            todos: [],
             dbRef: null
         }
     }
@@ -121,6 +131,27 @@ class App extends Component {
       //2) todo item itself - text, - str, comleted - bool
     }
 
+    handleRemove = todoId => {
+      removeTodo(this.state.dbRef, todoId);
+    };
+
+
+    handlePopulateTodos = ( ) => {
+      database.ref(this.state.dbRef)
+      .on('value', snapshot => {
+        const newStateArray = [];
+        snapshot.forEach(childSnapshot => {
+            newStateArray.push({
+              id: childSnapshot.key,
+              ...childSnapshot.val()
+            });
+        });
+
+        this.setState({todos: newStateArray });
+
+      });
+    };
+
     componentDidMount() {
         auth.onAuthStateChanged(user => {
             if(user) {
@@ -128,7 +159,7 @@ class App extends Component {
                     authenticated: true,
                     user,
                     dbRef: `users/${user.uid}/todos`
-                });
+                }, this.handlePopulateTodos);
             } else {
                 this.setState({ 
                     authenticated: false,
@@ -163,8 +194,10 @@ class App extends Component {
                       authenticated={this.state.authenticated}
                       handleChange={this.handleChange}
                       handleSubmit={this.handleSubmit}
+                      handleRemove={this.handleRemove}
                       user={this.state.user}
                       text={this.state.text}
+                      todos={this.state.todos}
                       path="/dashboard" 
                       component={Dashboard} 
                     />
